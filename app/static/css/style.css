@@ -1,0 +1,104 @@
+.upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+}
+
+.upload-area .btn {
+    background-color: #6c63ff;
+    border: none;
+}
+
+.upload-icon {
+    font-size: 2rem;
+    color: #6c63ff;
+}
+
+.recommendation-card {
+    background-color: #fff;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.recommendation-card .btn {
+    background-color: #6c63ff;
+    border: none;
+}
+
+.recommendation-card .btn:hover {
+    background-color: #5b52e5;
+}
+
+.detail-text {
+    color: #6c63ff;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.upload-box {
+    border: 2px dashed #D3D3D3;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    background-color: #F8F9FA;
+    margin: auto;
+    width: 100%;
+}
+
+.upload-icon {
+    color: #6c63ff; /* Adjust this color to match your exact branding */
+}
+
+.spinner-custom {
+    color: #6c63ff; /* Your desired hex color */
+}
+
+.upload-text {
+    color: #6c63ff; /* Adjust this color to match your exact branding */
+}
+
+.upload-support-text {
+    color: #6c757d; /* This is a Bootstrap secondary text color */
+}
+
+.browse-link {
+    color: #6c63ff; /* Adjust this color to match your exact branding */
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.dragover-style {
+    border: 3px dashed #6c63ff; /* Highlight color */
+    background-color: #e0e0e0; /* Light grey background */
+}
+
+.back-icon {
+    display: inline-block; /* Use block for a standalone clickable area */
+    #padding: 8px; /* Padding to increase the clickable area */
+    /* Optionally add hover effects */
+    transition: transform 0.3s ease;
+    font-size: 24px;
+    color: #6c63ff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.back-icon:hover {
+    transform: translateX(-5px); /* Slight left movement on hover */
+}
+
+.selected-card {
+    border: 2px solid #6c63ff; /* Adjust the color to match your theme */
+    background-color: #f0f0f8; /* Light background for highlight */
+}
+
+/* This media query is an example, adjust breakpoints as necessary for your design */
+@media (max-width: 768px) {
+    .upload-box {
+        width: 75%;
+    }
+}
