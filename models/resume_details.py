@@ -8,7 +8,6 @@ class ResumeDetails:
         self.skills = []
         self.job_recommendations = None
         self.skill_recommendations = None
-        self.sample = None
 
     def set_preprocessed_sentences(self, sentences):
         self.preprocessed_sentences = sentences

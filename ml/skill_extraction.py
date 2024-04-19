@@ -1,3 +1,4 @@
+import nltk
 import pandas as pd
 import torch
 from transformers import BertModel, AutoTokenizer, pipeline
@@ -21,11 +22,11 @@ class SkillsExtraction:
 
     def _initialize_model(self):
         self.emb_label = 'jobbert'
-        self.sim_threshold = .75
-        self.out_threshold = .75
-        esco_df = pd.read_csv(config.ESCO_FILE_PATH)
-        esco_df['jobbert'] = esco_df['jobbert'].apply(self.conv)
-        self.esco_df = esco_df
+        self.sim_threshold = .7
+        self.out_threshold = .7
+        skills_df = pd.read_csv(config.SKILL_FILE_PATH)
+        skills_df['jobbert'] = skills_df['jobbert'].apply(self.conv)
+        self.skills_df = skills_df
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -61,23 +62,87 @@ class SkillsExtraction:
         if len(resume_details.preprocessed_sentences) == 0:
             raise ValueError("No preprocessed sentences")
 
-        df_sample = pd.DataFrame({"Job Title": ["UNK"]})
-        esco_df = self.esco_df.copy()
-        pred_labels, result, oks = self._extract(resume_details.preprocessed_sentences, esco_df)
-        df_sample['labels'] = [pred_labels]
-        df_sample['ok'] = [oks]
+        skills_df = self.skills_df.copy()
+        phrases = set()
+        skills_sec = False
+        iter = 0
+        for sent in resume_details.preprocessed_sentences:
+            if 'Skills' in sent:
+                skills_sec = True
+                iter = 0
 
-        esco_skills = None
-        for index, s in df_sample.iterrows():
-            esco_skills = [esco_df.loc[x]['label_cleaned'] for x in s['labels']]
+            iter = iter + 1
 
-        esco_skills.extend(oks)
+            if not skills_sec or iter > 2:
+                continue
+            relevant_phrases = self._extract_relevant_phrases(sent, list(skills_df['labels']))
+            for phrase in relevant_phrases:
+                phrases.add(phrase)
 
-        resume_details.skills = esco_skills
-        resume_details.sample = df_sample
+        resume_details.preprocessed_sentences.extend(phrases)
+
+        a, b, c = self._extract_with_ner(resume_details.preprocessed_sentences, skills_df)
+        ner_skills = [skills_df.loc[x]['labels'] for x in a]
+        ner_skills.extend(c)
+
+        sent, skills, sim, idx = self._extract_with_jobbert(resume_details.preprocessed_sentences, skills_df)
+        unique_skills = list(set(ner_skills + skills))
+
+        resume_details.skills = unique_skills
         return resume_details
 
-    def _extract(self, sentences, esco_df):
+    nltk.download('averaged_perceptron_tagger')
+
+    def _extract_relevant_phrases(self,sentence, skill_keywords):
+        # Tokenize the sentence into words and tag their parts of speech
+        words = nltk.word_tokenize(sentence)
+        pos_tags = nltk.pos_tag(words)
+
+        phrases = []
+        current_phrase = []
+        for word, tag in pos_tags:
+            # Add word to current phrase
+            current_phrase.append(word)
+
+            # If the word is a noun, consider it the end of a phrase
+            if 'NN' in tag:
+                phrase = ' '.join(current_phrase)
+                phrases.append(phrase)
+                current_phrase = []
+
+        # Check if each phrase contains any skill keywords
+        relevant_phrases = [phrase for phrase in phrases if any(skill in phrase for skill in skill_keywords)]
+
+        return relevant_phrases
+    def _extract_with_jobbert(self,phrases_list, skills_df, threshold=.9):
+        res = []
+        phrase_embs = []
+
+        for phrase in phrases_list:
+            phrase_embs.append(self._get_embedding(phrase).squeeze())
+
+        idxs, sims = self._compute_similarity_mat(phrase_embs, self.emb_label)
+        for i in range(len(idxs)):
+            if sims[i] > threshold:
+                res.append((phrases_list[i], skills_df.iloc[idxs[i]]['labels'], sims[i], i))
+
+        sorted_res = sorted(res, key=lambda r: r[2], reverse=True)
+
+        sent = []
+        skill = []
+        sim = []
+        idx = []
+
+        for r in sorted_res:
+            sent.append(r[0])
+            skill.append(r[1])
+            sim.append(r[2])
+            idx.append(r[3])
+            # print('=========================')
+            # print(f"sentence: {r[0]}\nESCO skill:{r[1]}\nSimilarity:{r[2]:.4f}")
+
+        return sent, skill, sim, idx
+    def _extract_with_ner(self, sentences, skills_df):
         """
         Function that processes outputs from pre-trained, ready to use models
         that detect skills as a token classification task. There are two thresholds,
@@ -102,11 +167,13 @@ class SkillsExtraction:
                     for i in ok:
                         oks.append(i["word"])
 
+        if len(skill_embs) == 0:
+            raise Exception("Skills extraction failed!")
         idxs, sims = self._compute_similarity_mat(skill_embs, self.emb_label)
         for i in range(len(idxs)):
             if sims[i] > self.sim_threshold:
                 pred_labels.append(idxs[i])
-                res.append((skill_texts[i], esco_df.iloc[idxs[i]]['label_cleaned'], sims[i]))
+                res.append((skill_texts[i], skills_df.iloc[idxs[i]]['labels'], sims[i]))
 
         return pred_labels, res, oks
 
@@ -159,7 +226,7 @@ class SkillsExtraction:
 
     def _compute_similarity_mat(self, emb_mat, emb_type):
 
-        esco_embs = [x for x in self.esco_df[emb_type]]
+        esco_embs = [x for x in self.skills_df[emb_type]]
         esco_vectors = torch.stack(esco_embs)
         emb_vectors = torch.stack(emb_mat)
         norm_esco_vectors = torch.nn.functional.normalize(esco_vectors, p=2, dim=1)

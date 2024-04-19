@@ -14,9 +14,9 @@ class ResumeService:
         extracted_text = self.file_service.extract_text(file_name=resume_details.filename,
                                                         file_object=resume_details.file_object)
         resume_details.set_extracted_text(extracted_text)
-
         sentences = get_preprocessed_sentences(resume_details.extracted_text)
         resume_details.set_preprocessed_sentences(sentences)
+        print(sentences)
 
     def get_career_recommendations(self, resume_details):
         """

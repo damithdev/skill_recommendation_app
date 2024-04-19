@@ -1,3 +1,5 @@
+import re
+
 import nltk
 from nltk.corpus import stopwords
 import string
@@ -17,18 +19,48 @@ def _stripped(x):
     return " ".join(str(x).split("\n"))
 
 
-def _split_long_sentences(sentences, max_length=500):
+def _split_long_sentences(sentences, max_length=128):
+    # Split pattern for sentence terminators
+    punct_split_pattern = re.compile(r'(?<=[.!?])\s+')
+
+    # Split pattern for conjunctions and transitional phrases
+    conj_split_pattern = re.compile(r'\b(but|however|therefore|meanwhile|for example|e\.g\.,)\b')
+
+    def find_split_point(chunk, max_length):
+        # Find the nearest space before the max_length limit
+        split_point = chunk.rfind(' ', 0, max_length)
+        return split_point if split_point != -1 else max_length
+
+    def split_and_respect_length(sentence, max_length):
+        # First split by punctuation
+        primary_chunks = punct_split_pattern.split(sentence)
+        new_sentences = []
+
+        for chunk in primary_chunks:
+            while len(chunk) > max_length:
+                # Further split by conjunctions if the chunk is too long
+                secondary_chunks = conj_split_pattern.split(chunk, 1)  # Split at the first occurrence
+
+                if len(secondary_chunks) == 1:
+                    # Forced split if no suitable conjunctions found
+                    split_point = find_split_point(chunk, max_length)
+                else:
+                    # Split at the conjunction or nearest space before max_length
+                    split_point = find_split_point(secondary_chunks[0], max_length)
+
+                new_sentences.append(chunk[:split_point].strip())
+                chunk = chunk[split_point:].strip()
+
+            new_sentences.append(chunk)
+
+        return new_sentences
+
     new_sentences = []
     for sentence in [sentences]:
+        # Assuming remove_stopwords_and_punctuation is a defined function
         sentence = _remove_stopwords_and_punctuation(sentence)
-        if len(sentence) > max_length:
-            chunks = [sentence[i:i + max_length] for i in range(0, len(sentence), max_length)]
+        new_sentences.extend(split_and_respect_length(sentence, max_length))
 
-            new_sentences.extend(chunks)
-        elif sentence == " " or sentence == "":
-            continue
-        else:
-            new_sentences.append(sentence)
     return new_sentences
 
 

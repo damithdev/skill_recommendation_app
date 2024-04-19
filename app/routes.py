@@ -1,4 +1,5 @@
 import os
+import traceback
 
 import config
 import utils.mock
@@ -14,17 +15,23 @@ from utils.file_util import generate_unique_filename
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        file = request.files['file']
-        if file:
-            filename = secure_filename(file.filename)
-            file_ext = os.path.splitext(filename)[1]
-            if file_ext not in ['.pdf']:
-                return jsonify({'error': 'File type not allowed'}), 400
+        try:
+            file = request.files['file']
+            if file:
+                filename = secure_filename(file.filename)
+                file_ext = os.path.splitext(filename)[1]
+                if file_ext not in ['.pdf']:
+                    return jsonify({'error': 'File type not allowed'}), 400
 
-            careers = process_file(file, filename)
+                careers = process_file(file, filename)
 
-            return jsonify(careers), 200
-        return jsonify({'error': 'No file provided'}), 400
+                return jsonify(careers), 200
+            return jsonify({'error': 'No file provided'}), 400
+        except Exception as e:
+            print(e)
+            traceback.print_exc()
+            error_message = str(e) if str(e) else "Error Occurred In System"
+            return jsonify({'error': error_message }), 500
     return render_template('index.html')
 
 
